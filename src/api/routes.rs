@@ -1,5 +1,5 @@
 use crate::state::State;
-use actix_web::{HttpResponse, Responder, delete, post, web};
+use actix_web::{HttpResponse, Responder, delete, get, http::header, post, web};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -34,6 +34,13 @@ async fn create_link(state: web::Data<State>, req: web::Json<CreateLinkRequest>)
         }
     };
 
+    // validate that the url is fully qualified
+    if !&req.url.starts_with("https://") && !&req.url.starts_with("http://") {
+        return HttpResponse::BadRequest().json(ErrorResponse {
+            error: "URL is not fully qualified (missing https:// or http://)".to_string(),
+        });
+    }
+
     match crate::database::create_link(&client, &id, &req.url).await {
         Ok(_) => HttpResponse::Created().json(CreateLinkResponse { id, url: req.url.clone() }),
         Err(_) => HttpResponse::InternalServerError()
@@ -63,5 +70,32 @@ async fn delete_link(state: web::Data<State>, path: web::Path<String>) -> impl R
         Ok(_) => HttpResponse::NoContent().finish(),
         Err(_) => HttpResponse::InternalServerError()
             .json(ErrorResponse { error: "Failed to delete link".to_string() }),
+    }
+}
+
+#[get("/{id}")]
+async fn redirect(state: web::Data<State>, path: web::Path<String>) -> impl Responder {
+    let id = path.into_inner();
+
+    // Validate that the ID is the correct length (8 characters)
+    // this could be its own function?
+    if id.len() != 8 {
+        return HttpResponse::BadRequest()
+            .json(ErrorResponse { error: "Invalid ID format".to_string() });
+    }
+
+    let client = match state.database_client().await {
+        Ok(client) => client,
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .json(ErrorResponse { error: "Database connection failed".to_string() });
+        }
+    };
+
+    match crate::database::get_link(&client, &id).await {
+        Ok(url) => HttpResponse::SeeOther().insert_header((header::LOCATION, url)).finish(),
+        Err(_) => {
+            HttpResponse::NotFound().json(ErrorResponse { error: "Link not found".to_string() })
+        }
     }
 }
