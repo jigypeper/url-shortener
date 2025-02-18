@@ -20,7 +20,9 @@ where
     C: GenericClient,
 {
     const SQL: &str = "DELETE FROM link WHERE id = $1";
-    const TYPES: &[Type] = &[Type::TEXT, Type::TEXT];
+    // the types constant below needed modifying, the query only has 1 param
+    // and types had 2.
+    const TYPES: &[Type] = &[Type::TEXT];
 
     let stmt = client.prepare_typed(SQL, TYPES).await?;
     client.execute(&stmt, &[&id]).await?;

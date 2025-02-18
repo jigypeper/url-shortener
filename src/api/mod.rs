@@ -10,7 +10,7 @@ pub mod routes;
 pub use routes::*;
 
 fn api_config(cfg: &mut web::ServiceConfig) {
-    cfg.service(create_link);
+    cfg.service(create_link).service(delete_link);
 }
 
 async fn not_found_handler(_request: HttpRequest) -> HttpResponse {
