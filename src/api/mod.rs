@@ -6,9 +6,11 @@ use actix_web::middleware::{Compress, Logger, NormalizePath};
 use actix_web::{App, HttpRequest, HttpResponse, HttpServer, web};
 
 use crate::state::State;
+pub mod routes;
+pub use routes::*;
 
-fn api_config(_cfg: &mut web::ServiceConfig) {
-    todo!()
+fn api_config(cfg: &mut web::ServiceConfig) {
+    cfg.service(create_link).service(delete_link).service(redirect);
 }
 
 async fn not_found_handler(_request: HttpRequest) -> HttpResponse {
